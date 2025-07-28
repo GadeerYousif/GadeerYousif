@@ -16,7 +16,7 @@
 
 ## 🤝 Connect with Me
 <p align="left">
-  <a href="https://linkedin.com/in/gadeeryousif" target="_blank">
+  <a href="https://www.linkedin.com/in/gadeer-yousif/" target="_blank">
     <img src="https://raw.githubusercontent.com/rahuldkjain/github-profile-readme-generator/master/src/images/icons/Social/linked-in-alt.svg" alt="LinkedIn" width="30" height="30"/>
   </a>
 </p>
