@@ -2,6 +2,7 @@
   "expo": {
     "name": "live-translate-app",
     "slug": "live-translate-app",
+    "scheme": "livetranslate",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,7 +11,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Live Translate reads text directly from the camera feed to translate it on screen. No photos or video are saved."
-      }
+      },
+      "bundleIdentifier": "com.anonymous.livetranslateapp"
     },
     "android": {
       "permissions": ["android.permission.CAMERA"],
@@ -20,7 +22,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.livetranslateapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -30,9 +33,18 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Live Translate reads text out of screenshots you choose to import (e.g. a chat screenshot) to translate them on-device. Nothing is uploaded.",
-          "cameraPermission": false,
-          "microphonePermission": false
+          "photosPermission": "Live Translate reads text out of screenshots you choose to import (e.g. a chat screenshot) to translate them on-device. Nothing is uploaded."
+        }
+      ],
+      [
+        "expo-share-intent",
+        {
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsImageWithMaxCount": 1
+          },
+          "androidIntentFilters": [
+            "image/*"
+          ]
         }
       ]
     ]

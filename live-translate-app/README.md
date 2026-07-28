@@ -9,7 +9,10 @@ vision pipeline, no images uploaded anywhere:
    time. Nothing is ever saved: each camera frame is analyzed in memory and
    discarded (`frame.dispose()`).
 2. **Photo** — import a screenshot (e.g. of a WhatsApp chat) from your photo
-   library and get translated captions overlaid directly on top of it.
+   library, or **share one in from anywhere (including a Shortcut bound to
+   your Action Button or Back Tap)**, and get translated captions overlaid
+   directly on top of it — automatically, no in-app taps needed for the
+   share path.
 
 These solve different problems, worth being explicit about: **Live Camera
 reads the physical world through the lens; it cannot read text that's
@@ -85,6 +88,42 @@ plain uniform scale for a displayed image).
 - `App.tsx` — floating bottom tab bar switching between the two modes; the
   From/To language selection is shared across both.
 
+## Action Button / Back Tap shortcut (iOS)
+
+Live Translate registers as a share target (via `expo-share-intent`), so it
+can receive an image from iOS's share sheet — including from the Shortcuts
+app — and translates it the instant it arrives, with zero taps inside the
+app itself. Combined with an iOS Shortcut bound to a hardware gesture, this
+is the closest thing to "one press, from inside any app, translated" that
+iOS allows (see "Requirements & limitations" for why a true floating
+overlay isn't possible there).
+
+**One-time setup, on your iPhone, after installing the dev build:**
+
+1. Open the **Shortcuts** app → **+** to create a new Shortcut.
+2. Add the **Take Screenshot** action.
+3. Add the **Share** action, feed it the screenshot from step 2, and pick
+   **Live Translate** from the app list (it appears there once the dev
+   build with the Share Extension is installed).
+4. Name the Shortcut (e.g. "Translate Screen").
+5. Bind it to a gesture:
+   - **Action Button** (iPhone 15 Pro or later): Settings → Action Button →
+     scroll to *Shortcut* → select "Translate Screen".
+   - **Back Tap** (any iPhone): Settings → Accessibility → Touch → Back Tap
+     → Double Tap (or Triple Tap) → select "Translate Screen".
+
+**To use it**: open the foreign-language WhatsApp chat, press the Action
+Button (or back-tap), and Live Translate opens directly on the Photo tab
+with the chat already translated — no manual screenshot, no "Import" tap.
+It does switch away from WhatsApp to show the result (iOS doesn't allow a
+floating result over another app's window), but it's a single action from
+inside the chat to a translated screen.
+
+This is implemented in `App.tsx`: `useShareIntent()` (from
+`expo-share-intent`) watches for an incoming shared image, switches to
+Photo mode, and calls the same `usePhotoTranslation` pipeline Photo mode's
+manual "Import screenshot" button uses.
+
 ## Requirements & limitations
 
 - **This needs a Development Build, not Expo Go.** Both OCR paths run
@@ -101,11 +140,11 @@ plain uniform scale for a displayed image).
   Kit Translate), so the first translation after switching languages may
   take a moment and needs a network connection once; after that it works
   offline.
-- **Photo mode requires a manual screenshot + import** — there's no "Share
-  to Live Translate" entry in the OS share sheet yet. Adding one is
-  possible (an iOS Share Extension / Android Share Target) but needs a
-  native Xcode/Android Studio project to build and configure, which isn't
-  something this environment can do or test.
+- **A floating icon that sits on top of other apps (like Mobizen) is not
+  possible on iOS**, for any app — it's an OS sandbox restriction, not an
+  App Store policy one, so it holds regardless of how the app is
+  distributed. The Action Button / Back Tap Shortcut (below) is the closest
+  iOS equivalent: one physical action from inside any app, no floating UI.
 - **Overlay positioning is a best-effort mapping** from source coordinates
   to screen coordinates. It's implemented per the documented behavior of
   the camera/OCR libraries, but exact sensor orientation and crop behavior
@@ -143,6 +182,17 @@ been exercised on real hardware. Treat the overlay geometry and
 frame-skip/performance constants (`FRAME_SKIP_THRESHOLD` in
 `useLiveTranslation.ts`) as a starting point to tune once you can run it on
 a device.
+
+The `expo-share-intent` integration was checked one level deeper: `npx expo
+prebuild` was run to confirm it generates without error and actually
+produces an `ios/ShareExtension` target and the right `Info.plist`/
+`AndroidManifest.xml` entries (that step also caught a real bug — an
+`expo-image-picker` config option was silently stripping the Android
+`CAMERA` permission app-wide, since Android permissions aren't scoped
+per-library; fixed). What's still unverified: the Share Extension actually
+compiling and appearing in the iOS share sheet, a Shortcut successfully
+launching it, and `useShareIntent()` firing with real data — all of that
+needs a Mac + Xcode + a physical iPhone, none of which are available here.
 
 ## Project structure
 

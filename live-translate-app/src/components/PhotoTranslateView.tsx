@@ -13,8 +13,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CAMERA_SOURCE_LANGUAGES, SUPPORTED_LANGUAGES } from '../constants/languages';
-import { usePhotoTranslation } from '../hooks/usePhotoTranslation';
-import type { TranslationDirection } from '../types';
+import type { PickedImage } from '../hooks/usePhotoTranslation';
+import type { DetectedBlock, TranslationDirection } from '../types';
 import { mapImageRectToScreen } from '../utils/geometry';
 import { LanguagePicker } from './LanguagePicker';
 import { TranslationOverlay } from './TranslationOverlay';
@@ -22,12 +22,27 @@ import { TranslationOverlay } from './TranslationOverlay';
 interface Props {
   direction: TranslationDirection;
   onChangeDirection: (direction: TranslationDirection) => void;
+  image: PickedImage | null;
+  blocks: DetectedBlock[];
+  isProcessing: boolean;
+  error: string | null;
+  isTranslatorReady: boolean;
+  processImage: (image: PickedImage) => Promise<void>;
+  reset: () => void;
 }
 
-export function PhotoTranslateView({ direction, onChangeDirection }: Props) {
+export function PhotoTranslateView({
+  direction,
+  onChangeDirection,
+  image,
+  blocks,
+  isProcessing,
+  error,
+  isTranslatorReady,
+  processImage,
+  reset,
+}: Props) {
   const insets = useSafeAreaInsets();
-  const { image, blocks, isProcessing, error, isTranslatorReady, processImage, reset } =
-    usePhotoTranslation(direction);
   const [displayWidth, setDisplayWidth] = useState(0);
 
   const pickScreenshot = useCallback(async () => {
@@ -54,9 +69,9 @@ export function PhotoTranslateView({ direction, onChangeDirection }: Props) {
     >
       <Text style={styles.title}>Translate a screenshot</Text>
       <Text style={styles.subtitle}>
-        Screenshot a chat (e.g. WhatsApp), then import it here — text gets recognized and
-        translated right on top of the image. Nothing is uploaded; recognition and translation
-        both run on-device.
+        Screenshot a chat (e.g. WhatsApp), then import it here — or share a screenshot into Live
+        Translate (or run the Shortcut bound to your Action Button/Back Tap) and it lands here
+        already translated. Nothing is uploaded; recognition and translation both run on-device.
       </Text>
 
       <View style={styles.languageRow}>
