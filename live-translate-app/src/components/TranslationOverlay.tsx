@@ -2,27 +2,29 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { DetectedBlock } from '../types';
-import { mapFrameRectToScreen, type Size } from '../utils/geometry';
+import { mapFrameRectToScreen, type ScreenRect, type Size } from '../utils/geometry';
 
 interface Props {
   blocks: DetectedBlock[];
   frameSize: Size;
   viewSize: Size;
+  /** How to convert a block's source-space rect into screen coordinates. Defaults to the live-camera (cover + rotate) mapping. */
+  mapRect?: (rect: DetectedBlock['frame'], sourceSize: Size, viewSize: Size) => ScreenRect;
 }
 
 /**
  * Draws a translated-text "patch" over each recognized block, positioned to
- * match its live location in the camera preview. Nothing here is a captured
- * image — it's plain Views layered on top of the live <Camera> feed and
- * repositioned every time new OCR results arrive.
+ * match its location in the source (camera preview or still image). Nothing
+ * here is a captured image — it's plain Views layered on top, repositioned
+ * every time new OCR results arrive.
  */
-export function TranslationOverlay({ blocks, frameSize, viewSize }: Props) {
+export function TranslationOverlay({ blocks, frameSize, viewSize, mapRect = mapFrameRectToScreen }: Props) {
   if (frameSize.width === 0 || viewSize.width === 0) return null;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {blocks.map((block) => {
-        const rect = mapFrameRectToScreen(block.frame, frameSize, viewSize);
+        const rect = mapRect(block.frame, frameSize, viewSize);
         return (
           <View
             key={block.key}

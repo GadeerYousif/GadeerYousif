@@ -9,9 +9,13 @@ import type { TranslationDirection } from '../types';
 import { LanguagePicker } from './LanguagePicker';
 import { TranslationOverlay } from './TranslationOverlay';
 
-export function CameraTranslateView() {
+interface Props {
+  direction: TranslationDirection;
+  onChangeDirection: (direction: TranslationDirection) => void;
+}
+
+export function CameraTranslateView({ direction, onChangeDirection }: Props) {
   const insets = useSafeAreaInsets();
-  const [direction, setDirection] = useState<TranslationDirection>({ from: 'es', to: 'en' });
   const [viewSize, setViewSize] = useState({ width: 0, height: 0 });
 
   const { device, outputs, blocks, frameSize, isTranslatorReady, translatorError } =
@@ -23,11 +27,9 @@ export function CameraTranslateView() {
   }, []);
 
   const swapLanguages = useCallback(() => {
-    setDirection((prev) => {
-      const swappedFrom = CAMERA_SOURCE_LANGUAGES.some((l) => l.code === prev.to) ? prev.to : prev.from;
-      return { from: swappedFrom, to: prev.from };
-    });
-  }, []);
+    const swappedFrom = CAMERA_SOURCE_LANGUAGES.some((l) => l.code === direction.to) ? direction.to : direction.from;
+    onChangeDirection({ from: swappedFrom, to: direction.from });
+  }, [direction, onChangeDirection]);
 
   if (device == null) {
     return (
@@ -49,7 +51,7 @@ export function CameraTranslateView() {
             label="From"
             value={direction.from}
             options={CAMERA_SOURCE_LANGUAGES}
-            onChange={(from) => setDirection((prev) => ({ ...prev, from }))}
+            onChange={(from) => onChangeDirection({ ...direction, from })}
           />
           <Pressable style={styles.swapButton} onPress={swapLanguages}>
             <Text style={styles.swapIcon}>⇄</Text>
@@ -58,26 +60,26 @@ export function CameraTranslateView() {
             label="To"
             value={direction.to}
             options={SUPPORTED_LANGUAGES}
-            onChange={(to) => setDirection((prev) => ({ ...prev, to }))}
+            onChange={(to) => onChangeDirection({ ...direction, to })}
           />
         </View>
       </View>
 
       {!isTranslatorReady && !translatorError && (
-        <View style={[styles.statusPill, { bottom: insets.bottom + 24 }]}>
+        <View style={[styles.statusPill, { bottom: insets.bottom + 88 }]}>
           <ActivityIndicator color="#fff" size="small" />
           <Text style={styles.statusText}>Preparing offline translation model…</Text>
         </View>
       )}
 
       {translatorError && (
-        <View style={[styles.statusPill, styles.errorPill, { bottom: insets.bottom + 24 }]}>
+        <View style={[styles.statusPill, styles.errorPill, { bottom: insets.bottom + 88 }]}>
           <Text style={styles.statusText}>Translation error: {translatorError}</Text>
         </View>
       )}
 
       {isTranslatorReady && blocks.length === 0 && (
-        <View style={[styles.statusPill, { bottom: insets.bottom + 24 }]}>
+        <View style={[styles.statusPill, { bottom: insets.bottom + 88 }]}>
           <Text style={styles.statusText}>Point the camera at some text</Text>
         </View>
       )}
