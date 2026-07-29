@@ -12,10 +12,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CAMERA_SOURCE_LANGUAGES, SUPPORTED_LANGUAGES } from '../constants/languages';
+import { OCR_SOURCE_LANGUAGES, SUPPORTED_LANGUAGES } from '../constants/languages';
 import type { PickedImage } from '../hooks/usePhotoTranslation';
 import type { DetectedBlock, TranslationDirection } from '../types';
-import { mapImageRectToScreen } from '../utils/geometry';
 import { LanguagePicker } from './LanguagePicker';
 import { TranslationOverlay } from './TranslationOverlay';
 
@@ -78,14 +77,14 @@ export function PhotoTranslateView({
         <LanguagePicker
           label="From"
           value={direction.from}
-          options={CAMERA_SOURCE_LANGUAGES}
+          options={OCR_SOURCE_LANGUAGES}
           onChange={(from) => onChangeDirection({ ...direction, from })}
         />
         <Pressable
           style={styles.swapButton}
           onPress={() =>
             onChangeDirection({
-              from: CAMERA_SOURCE_LANGUAGES.some((l) => l.code === direction.to) ? direction.to : direction.from,
+              from: OCR_SOURCE_LANGUAGES.some((l) => l.code === direction.to) ? direction.to : direction.from,
               to: direction.from,
             })
           }
@@ -120,7 +119,6 @@ export function PhotoTranslateView({
                   blocks={blocks}
                   frameSize={{ width: image.width, height: image.height }}
                   viewSize={{ width: displayWidth, height: displayHeight }}
-                  mapRect={mapImageRectToScreen}
                 />
               </>
             )}

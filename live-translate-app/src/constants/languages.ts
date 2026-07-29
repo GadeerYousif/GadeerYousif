@@ -18,8 +18,8 @@ export interface Language {
 /**
  * ML Kit's on-device text *recognizer* only understands five scripts. A
  * language can still be a translation *target* (see SUPPORTED_LANGUAGES)
- * without being detectable as camera input, e.g. Arabic or Thai text can be
- * translated *into*, but can't currently be read off the live camera feed
+ * without being OCR-readable, e.g. Arabic or Thai text can be translated
+ * *into*, but can't currently be read out of an imported screenshot
  * on-device.
  */
 const OCR_SCRIPT_BY_CODE: Partial<Record<LanguageCode, OcrScript>> = {
@@ -98,7 +98,7 @@ export function languageLabel(code: string): string {
   return SUPPORTED_LANGUAGES.find((l) => l.code === code)?.label ?? code.toUpperCase();
 }
 
-/** Languages the camera can actually read text from (see ocrScriptForLanguage). */
-export const CAMERA_SOURCE_LANGUAGES: Language[] = SUPPORTED_LANGUAGES.filter((l) =>
+/** Languages the OCR step can actually read text in (see ocrScriptForLanguage). */
+export const OCR_SOURCE_LANGUAGES: Language[] = SUPPORTED_LANGUAGES.filter((l) =>
   ocrScriptForLanguage(l.code),
 );

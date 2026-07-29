@@ -1,102 +1,38 @@
 # Live Translate
 
-A React Native (Expo) app with two ways to translate text, both running
-entirely **on-device** via Google's ML Kit — no server round-trip for the
-vision pipeline, no images uploaded anywhere:
+A React Native (Expo) app that translates a screenshot the instant it's
+shared to it — most importantly, from an iOS Shortcut bound to the Action
+Button or Back Tap, so translating a chat (e.g. a foreign-language WhatsApp
+group) is a single physical action from inside the chat: screenshot → share
+→ translated. Text recognition and translation both run **on-device** via
+Google's ML Kit — no server round-trip, nothing uploaded.
 
-1. **Live Camera** — point the phone at real-world text (a sign, a menu, a
-   page) and see translated captions overlaid on the live preview in real
-   time. Nothing is ever saved: each camera frame is analyzed in memory and
-   discarded (`frame.dispose()`).
-2. **Photo** — import a screenshot (e.g. of a WhatsApp chat) from your photo
-   library, or **share one in from anywhere (including a Shortcut bound to
-   your Action Button or Back Tap)**, and get translated captions overlaid
-   directly on top of it — automatically, no in-app taps needed for the
-   share path.
+Two ways in:
 
-These solve different problems, worth being explicit about: **Live Camera
-reads the physical world through the lens; it cannot read text that's
-already on your phone's own screen (e.g. inside another app).** Reading
-another app's on-screen content (like a live, automatic WhatsApp overlay
-translator) is not something any third-party app can do on iOS — Apple's
-sandbox doesn't allow an app to read another app's screen content or draw a
-persistent overlay over it. Android *can* do this via an Accessibility
-Service (a fundamentally different, Android-only app — not built here).
-**Photo mode is the cross-platform, App-Store-legal way to translate chat
-text**: you take the screenshot yourself (one system gesture), import it,
-and get an instant on-device translation overlaid on the image — no
-manual copy/paste, no per-message selection.
+1. **Share it in** (the main path) — a Shortcut takes a screenshot and
+   shares it to Live Translate, which recognizes and translates the text
+   and shows it overlaid on the image immediately, with zero taps inside
+   the app.
+2. **Import screenshot** button — same pipeline, manually, for when you
+   already have a screenshot saved (e.g. from Photos).
 
-## How it works
+## Why a Shortcut instead of a floating overlay
 
-### Live Camera
+The obvious "Mobizen-style" version of this — a floating icon that sits on
+top of WhatsApp and shows a translation overlay right there — **is not
+possible on iOS, for any app.** It's an OS sandbox restriction (no API lets
+a third-party app draw over another app's window or read its content), not
+an App Store policy one, so it holds even for a purely local/sideloaded
+build. An iOS Shortcut bound to a hardware gesture is the closest iOS
+allows: one action, from inside any app, straight to a translated result —
+it just has to switch to Live Translate to show it, rather than overlaying
+WhatsApp in place.
 
-```
-Camera sensor
-   │  (frame processor, ~4x/sec)
-   ▼
-On-device text recognition (ML Kit, via react-native-vision-camera-ocr-plus)
-   │  bounding boxes + text per block
-   ▼
-On-device translation (ML Kit Translate, cached per unique string)
-   │  translated string per block
-   ▼
-<TranslationOverlay> — absolutely-positioned Views drawn on top of the
-live <Camera> preview, repositioned every time new OCR results arrive
-```
-
-### Photo
-
-```
-User imports an image (expo-image-picker)
-   │
-Still-image OCR (ML Kit, via the same OCR-Plus recognizer, recognizePhoto())
-   │  bounding boxes + text per block, in image pixel coordinates
-   ▼
-On-device translation (same cached ML Kit Translate as Live Camera)
-   ▼
-<TranslationOverlay> — same component as Live Camera, mapped onto the
-static image instead of a camera frame
-```
-
-Both modes share the same translation cache/model wrapper and the same
-overlay component — Live Camera and Photo differ only in *where the text
-comes from* (a camera frame vs. a still image) and how its bounding boxes
-get mapped to screen coordinates (cover+crop+rotate for the camera vs. a
-plain uniform scale for a displayed image).
-
-### Key pieces
-
-- `src/hooks/useLiveTranslation.ts` — camera frame processor: scans each
-  sampled frame for text blocks, updates overlay state, and kicks off
-  (cached, de-duplicated) translation for any newly-seen text.
-- `src/hooks/usePhotoTranslation.ts` — runs still-image OCR
-  (`recognizer.recognizePhoto()`) on an imported image and translates each
-  block the same way; re-scans automatically when the language pair changes.
-- `src/hooks/useTranslator.ts` — thin wrapper around ML Kit Translate with an
-  in-memory cache so identical text isn't re-translated every time, plus
-  "model ready" / error state for the UI. Shared by both modes.
-- `src/utils/geometry.ts` — `mapFrameRectToScreen` (camera: scale + crop +
-  rotate for `resizeMode: "cover"`) and `mapImageRectToScreen` (photo: plain
-  uniform scale, since the image is displayed at its own aspect ratio with
-  no cropping).
-- `src/components/CameraTranslateView.tsx` / `PhotoTranslateView.tsx` — the
-  two screens.
-- `src/components/TranslationOverlay.tsx` — shared: draws one
-  translated-text patch per detected block, positioned over the original
-  text; takes a `mapRect` function so both modes can reuse it.
-- `App.tsx` — floating bottom tab bar switching between the two modes; the
-  From/To language selection is shared across both.
+(Android *can* do a true floating overlay, via `SYSTEM_ALERT_WINDOW` + an
+Accessibility Service reading WhatsApp's text directly — a fundamentally
+different, much larger native-Kotlin build, not implemented here.)
 
 ## Action Button / Back Tap shortcut (iOS)
-
-Live Translate registers as a share target (via `expo-share-intent`), so it
-can receive an image from iOS's share sheet — including from the Shortcuts
-app — and translates it the instant it arrives, with zero taps inside the
-app itself. Combined with an iOS Shortcut bound to a hardware gesture, this
-is the closest thing to "one press, from inside any app, translated" that
-iOS allows (see "Requirements & limitations" for why a true floating
-overlay isn't possible there).
 
 **One-time setup, on your iPhone, after installing the dev build:**
 
@@ -113,26 +49,54 @@ overlay isn't possible there).
      → Double Tap (or Triple Tap) → select "Translate Screen".
 
 **To use it**: open the foreign-language WhatsApp chat, press the Action
-Button (or back-tap), and Live Translate opens directly on the Photo tab
-with the chat already translated — no manual screenshot, no "Import" tap.
-It does switch away from WhatsApp to show the result (iOS doesn't allow a
-floating result over another app's window), but it's a single action from
-inside the chat to a translated screen.
+Button (or back-tap), and Live Translate opens with the chat already
+translated — no manual screenshot, no "Import" tap.
 
-This is implemented in `App.tsx`: `useShareIntent()` (from
-`expo-share-intent`) watches for an incoming shared image, switches to
-Photo mode, and calls the same `usePhotoTranslation` pipeline Photo mode's
-manual "Import screenshot" button uses.
+## How it works
+
+```
+Shortcut takes a screenshot → shares it to Live Translate
+   │                                    (or: manual "Import screenshot")
+   ▼
+useShareIntent() (expo-share-intent) receives the image
+   │
+Still-image OCR (ML Kit, via react-native-vision-camera-ocr-plus's recognizePhoto())
+   │  bounding boxes + text per block, in image pixel coordinates
+   ▼
+On-device translation (ML Kit Translate, cached per unique string)
+   ▼
+<TranslationOverlay> — absolutely-positioned Views drawn on top of the
+displayed image, one per detected block
+```
+
+### Key pieces
+
+- `App.tsx` — wraps the tree in `ShareIntentProvider`; `useShareIntent()`
+  watches for an incoming shared image and feeds it into
+  `usePhotoTranslation`, the same pipeline the manual import button uses.
+- `src/hooks/usePhotoTranslation.ts` — runs still-image OCR
+  (`recognizer.recognizePhoto()`) and translates each block; re-scans
+  automatically when the language pair changes.
+- `src/hooks/useTranslator.ts` — thin wrapper around ML Kit Translate with
+  an in-memory cache so identical text isn't re-translated twice, plus
+  "model ready" / error state for the UI.
+- `src/utils/geometry.ts` — `mapImageRectToScreen`: maps a block's bounding
+  box from the image's own pixel coordinates to on-screen coordinates (a
+  plain uniform scale, since the image is displayed at its own aspect
+  ratio with no cropping).
+- `src/components/PhotoTranslateView.tsx` — the screen: language pickers,
+  import button, image + overlay.
+- `src/components/TranslationOverlay.tsx` — draws one translated-text patch
+  per detected block, positioned over the original text.
 
 ## Requirements & limitations
 
-- **This needs a Development Build, not Expo Go.** Both OCR paths run
-  through native modules (`react-native-vision-camera` frame processors and
-  ML Kit via Nitro) that Expo Go doesn't include. See "Running it" below.
-- **Camera-readable / OCR-readable languages are limited by ML Kit's
-  on-device text recognizer**, which only understands five scripts: Latin,
-  Chinese, Japanese, Korean, and Devanagari. This applies to *both* modes
-  (Live Camera and Photo import) — the "From" picker only lists languages
+- **This needs a Development Build, not Expo Go.** OCR/translation runs
+  through ML Kit via Nitro modules, and the share-intent path needs a real
+  iOS Share Extension target — neither is available in Expo Go.
+- **OCR-readable languages are limited by ML Kit's on-device text
+  recognizer**, which only understands five scripts: Latin, Chinese,
+  Japanese, Korean, and Devanagari. The "From" picker only lists languages
   using those scripts, while "To" lists everything ML Kit can translate
   into (e.g. you can translate *into* Arabic or Thai, but the OCR step
   can't currently read Arabic or Thai text on-device).
@@ -140,15 +104,16 @@ manual "Import screenshot" button uses.
   Kit Translate), so the first translation after switching languages may
   take a moment and needs a network connection once; after that it works
   offline.
-- **A floating icon that sits on top of other apps (like Mobizen) is not
-  possible on iOS**, for any app — it's an OS sandbox restriction, not an
-  App Store policy one, so it holds regardless of how the app is
-  distributed. The Action Button / Back Tap Shortcut (below) is the closest
-  iOS equivalent: one physical action from inside any app, no floating UI.
-- **Overlay positioning is a best-effort mapping** from source coordinates
-  to screen coordinates. It's implemented per the documented behavior of
-  the camera/OCR libraries, but exact sensor orientation and crop behavior
-  can vary slightly by device — this hasn't been calibrated against
+- **`react-native-vision-camera` and its worklets packages are still
+  dependencies**, even though this app has no camera feature — they're
+  required peer dependencies of `react-native-vision-camera-ocr-plus`
+  (confirmed: removing them from `package.json` gets them silently
+  reinstalled by npm's peer-dependency resolution anyway). They're dead
+  weight in the bundle, not a functional camera capability — no camera
+  permission is requested anywhere in this app.
+- **Overlay positioning is a best-effort mapping** from image pixel
+  coordinates to screen coordinates. It's implemented per the documented
+  library behavior, but hasn't been calibrated against a real screenshot on
   physical hardware in this environment (see "Testing status").
 
 ## Running it
@@ -166,52 +131,42 @@ npx expo run:android   # requires Android Studio / SDK
 npx expo start --dev-client
 ```
 
-A physical device is strongly recommended for Live Camera mode —
-simulators/emulators generally don't expose a real camera feed with live
-text to translate. Photo mode works fine in a simulator using a sample
-screenshot from its photo library.
-
 ## Testing status
 
 This app was built and type-checked (`tsc --noEmit`) and bundle-verified
 (`expo export`) in a sandboxed environment without a physical device,
-camera, or simulator available. The code follows the libraries' documented
-public APIs, but neither mode's live behavior — OCR accuracy, translation
-latency, overlay alignment in Live Camera, or image OCR in Photo mode — has
-been exercised on real hardware. Treat the overlay geometry and
-frame-skip/performance constants (`FRAME_SKIP_THRESHOLD` in
-`useLiveTranslation.ts`) as a starting point to tune once you can run it on
-a device.
+simulator, or macOS/Xcode available. `npx expo prebuild` was also run after
+every `app.json`/config-plugin change to confirm it generates without
+error and produces the expected native project files — e.g. the
+`ios/ShareExtension` target, and the right `Info.plist`/
+`AndroidManifest.xml` permission entries (that check caught two real bugs:
+an `expo-image-picker` config option silently stripping Android's
+`CAMERA` permission app-wide while the camera feature still existed, and
+later, after the camera feature was removed, a leftover default camera
+permission string still being injected — both fixed; see `AndroidManifest.xml`/
+`Info.plist` inspection commands in `CLAUDE.md` if you change permissions
+again).
 
-The `expo-share-intent` integration was checked one level deeper: `npx expo
-prebuild` was run to confirm it generates without error and actually
-produces an `ios/ShareExtension` target and the right `Info.plist`/
-`AndroidManifest.xml` entries (that step also caught a real bug — an
-`expo-image-picker` config option was silently stripping the Android
-`CAMERA` permission app-wide, since Android permissions aren't scoped
-per-library; fixed). What's still unverified: the Share Extension actually
-compiling and appearing in the iOS share sheet, a Shortcut successfully
-launching it, and `useShareIntent()` firing with real data — all of that
-needs a Mac + Xcode + a physical iPhone, none of which are available here.
+What's still unverified, because there's no way to check it without real
+hardware: OCR accuracy, translation latency, overlay alignment against an
+actual screenshot, the Share Extension actually compiling and appearing in
+iOS's share sheet, and a Shortcut successfully launching it end-to-end.
 
 ## Project structure
 
 ```
-App.tsx                          entry point + mode switcher (Live Camera / Photo)
+App.tsx                          entry point, ShareIntentProvider + share-intent handling
 src/
   components/
-    CameraTranslateView.tsx      live camera screen + language pickers
-    PhotoTranslateView.tsx       photo-import screen + language pickers
-    TranslationOverlay.tsx       shared: renders translated-text patches
+    PhotoTranslateView.tsx       the screen: language pickers, import button, image + overlay
+    TranslationOverlay.tsx       renders translated-text patches
     LanguagePicker.tsx           bottom-sheet language selector
-    PermissionGate.tsx           camera permission request/denied UI
   hooks/
-    useLiveTranslation.ts        camera frame processor + OCR/translation state
     usePhotoTranslation.ts       still-image OCR + translation state
-    useTranslator.ts             cached ML Kit Translate wrapper (shared)
+    useTranslator.ts             cached ML Kit Translate wrapper
   constants/
     languages.ts                 supported languages + OCR script mapping
   utils/
-    geometry.ts                  frame-space / image-space → screen-space mapping
+    geometry.ts                  image-space → screen-space bounding box mapping
   types.ts
 ```

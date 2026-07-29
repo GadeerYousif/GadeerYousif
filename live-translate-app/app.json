@@ -9,13 +9,9 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "infoPlist": {
-        "NSCameraUsageDescription": "Live Translate reads text directly from the camera feed to translate it on screen. No photos or video are saved."
-      },
       "bundleIdentifier": "com.anonymous.livetranslateapp"
     },
     "android": {
-      "permissions": ["android.permission.CAMERA"],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -33,7 +29,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Live Translate reads text out of screenshots you choose to import (e.g. a chat screenshot) to translate them on-device. Nothing is uploaded."
+          "photosPermission": "Live Translate reads text out of screenshots you choose to import (e.g. a chat screenshot) to translate them on-device. Nothing is uploaded.",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ],
       [
